@@ -12,20 +12,20 @@
 <style>
 /* Layout: one sentence naming the windiest moment, a spots-by-days wind table, then the chosen spot's hours, chart and per-model breakdown. */
 :root {
-  --bg: #EAF1F0; --surface: #F8FBFA; --ink: #0F2B2C; --muted: #4F6767; --line: #CFDEDC; --accent: #0B6A70; --band: rgba(11,106,112,.2);
+  --bg: #EAF1F0; --surface: #F8FBFA; --ink: #0F2B2C; --muted: #4F6767; --line: #CFDEDC; --accent: #0B6A70; --band: rgba(11,106,112,.2); --shade: rgba(234,241,240,.74);
   --w0: #E1ECEB; --w0f: #0F2B2C; --w1: #BCDDDB; --w1f: #0F2B2C; --w2: #82C5C4; --w2f: #0F2B2C;
   --w3: #3FA3A6; --w3f: #06191A; --w4: #0F6F78; --w4f: #FFFFFF; --w5: #083F49; --w5f: #FFFFFF;
   --display: "Fira Sans Extra Condensed", "Arial Narrow", sans-serif;
   --body: "Commissioner", "Segoe UI", system-ui, sans-serif;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #0F1C1D; --surface: #162627; --ink: #E5F0EF; --muted: #9DB4B3; --line: #2B4142; --accent: #76CFCB; --band: rgba(118,207,203,.22);
+  --bg: #0F1C1D; --surface: #162627; --ink: #E5F0EF; --muted: #9DB4B3; --line: #2B4142; --accent: #76CFCB; --band: rgba(118,207,203,.22); --shade: rgba(15,28,29,.72);
   --w0: #1D3031; --w0f: #E5F0EF; --w1: #1F4A4B; --w1f: #E5F0EF; --w2: #24706F; --w2f: #FFFFFF;
   --w3: #3FA6A5; --w3f: #06191A; --w4: #82D4CF; --w4f: #06191A; --w5: #D8F3EF; --w5f: #06191A;
   color-scheme: dark;
 } }
 :root[data-theme="dark"] {
-  --bg: #0F1C1D; --surface: #162627; --ink: #E5F0EF; --muted: #9DB4B3; --line: #2B4142; --accent: #76CFCB; --band: rgba(118,207,203,.22);
+  --bg: #0F1C1D; --surface: #162627; --ink: #E5F0EF; --muted: #9DB4B3; --line: #2B4142; --accent: #76CFCB; --band: rgba(118,207,203,.22); --shade: rgba(15,28,29,.72);
   --w0: #1D3031; --w0f: #E5F0EF; --w1: #1F4A4B; --w1f: #E5F0EF; --w2: #24706F; --w2f: #FFFFFF;
   --w3: #3FA6A5; --w3f: #06191A; --w4: #82D4CF; --w4f: #06191A; --w5: #D8F3EF; --w5f: #06191A;
   color-scheme: dark;
@@ -103,16 +103,30 @@ tr.sel .spot-btn { color: var(--accent); text-decoration: underline; text-underl
 #wDetail > * { min-width: 0; }
 #wPanel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; }
 #wPanel > * { min-width: 0; }
+#bg { position: fixed; inset: 0; z-index: -2; overflow: hidden; background: var(--bg); }
+.bg-layer { position: absolute; inset: 0; opacity: 0; transition: opacity .6s ease; }
+.bg-layer.on { opacity: 1; }
+.bg-layer img { position: absolute; width: 256px; height: 256px; max-width: none; }
+#bgShade { position: fixed; inset: 0; z-index: -1; background: var(--shade); }
+.credit { color: var(--muted); font-size: 11px; }
+.wblock { display: grid; gap: 14px; scroll-margin-top: 12px; }
+.wblock > * { min-width: 0; }
+.wpanel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; }
+.wpanel > * { min-width: 0; }
+@media (prefers-reduced-motion: reduce) { .bg-layer { transition: none; } }
 footer { color: var(--muted); font-size: 13px; max-width: 62em; }
 </style>
 
 </head>
 <body>
+<div id="bg" aria-hidden="true"></div>
+<div id="bgShade" aria-hidden="true"></div>
 <div class="wrap">
   <header>
     <h1>Spots Ανέμου</h1>
     <p id="lead" style="margin:0">Φορτώνουν οι προγνώσεις για τα spot…</p>
     <div id="sync" role="status"></div>
+    <div class="credit">Φόντο: EOxCloudless <a href="https://cloudless.eox.at" target="_blank" rel="noopener">cloudless.eox.at</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024), CC BY-NC-SA 4.0</div>
   </header>
   <div id="notice" hidden></div>
 
@@ -145,17 +159,11 @@ footer { color: var(--muted); font-size: 13px; max-width: 62em; }
     <p class="sec-note">Το μεγαλύτερο ύψος κύματος της μέρας, 08:00–20:00, σε μέτρα. Μέσος όρος από 4 μοντέλα. Πάτα ένα spot για λεπτομέρειες.</p>
     <div class="matrix-box" id="wMatrix"><p class="sec-note">Φορτώνουν τα κύματα…</p></div>
     <div class="scale" id="wScale"></div>
-    <div id="wDetail" hidden>
-      <div class="spot-head"><h2 id="wName"></h2><span id="wWhere" class="sec-note" style="margin:0"></span></div>
-      <div>
-        <div class="days" id="wDays"></div>
-        <div class="key" style="margin-top:10px">
-          <span>Μεγάλος αριθμός: ύψος κύματος σε μέτρα. Μικρός: περίοδος σε δευτερόλεπτα.</span>
-          <span>Το βέλος δείχνει προς τα πού πηγαίνει το κύμα.</span>
-          <span>● συμφωνούν ◐ μέτρια ○ διαφωνούν</span>
-        </div>
-      </div>
-      <div id="wPanel"></div>
+    <div id="wDetail"></div>
+    <div class="key" style="margin-top:10px">
+      <span>Μεγάλος αριθμός: ύψος κύματος σε μέτρα. Μικρός: περίοδος σε δευτερόλεπτα.</span>
+      <span>Το βέλος δείχνει προς τα πού πηγαίνει το κύμα.</span>
+      <span>● συμφωνούν ◐ μέτρια ○ διαφωνούν</span>
     </div>
   </section>
   <footer>Μέσος όρος από 8 ανεξάρτητα μοντέλα (ECMWF, GFS, ICON, Météo-France, UKMO, GEM, JMA, GRAPES), άνεμος στα 10 μέτρα, δεδομένα από το <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0). Τα κύματα είναι μέσος όρος από 4 μοντέλα κυμάτων (ECMWF, GFS Wave, MFWAM, GWAM) και αφορούν τα ανοιχτά κοντά στο spot, οπότε στην παραλία μπορεί να διαφέρουν. Είναι πρόγνωση και όχι εγγύηση, οπότε έλεγξε τις συνθήκες στο spot πριν βγεις.</footer>
@@ -318,6 +326,7 @@ function renderDetail() {
 }
 
 function renderAll() {
+  if (spots.length && !bgDone) { bgDone = true; setBg(spots.find(x => x.id === selId) || spots[0]); }
   if (!spots.length) return;
   const now = nowKey();
   if (!spots.some(s => s.id === selId)) selId = spots[0].id;
@@ -354,7 +363,7 @@ const WSPOTS = [
 const WMODELS = { ecmwf_wam:'ECMWF · Ευρώπη', ncep_gfswave016:'GFS Wave · ΗΠΑ', meteofrance_wave:'MFWAM · Γαλλία', dwd_gwam:'GWAM · Γερμανία' };
 const WSCALE = ['0–0,3','0,3–0,6','0,6–1','1–1,5','1,5–2,5','2,5+'];
 const WCACHE = 'spots-waves-v2', WMAX_AGE = 60 * 60 * 1000;
-let wspots = [], wSel = 'asprovalta', wHour = null, wLoaded = 0;
+let wspots = [], wSel = 'asprovalta', wHour = {}, wLoaded = 0;
 const hbin = h => h < 0.3 ? 0 : h < 0.6 ? 1 : h < 1 ? 2 : h < 1.5 ? 3 : h < 2.5 ? 4 : 5;
 const m1 = v => v == null ? '–' : v.toFixed(1).replace('.', ',');
 const rr = (v, n) => { const p = Math.pow(10, n); return Math.round(v * p) / p; };
@@ -415,59 +424,87 @@ function renderWaveMatrix(now) {
   $('wMatrix').innerHTML = html + '</tbody></table>';
   $('wScale').innerHTML = '<b>Μέτρα</b>' + WSCALE.map((l, n) => `<span class="w${n}">${l}</span>`).join('');
 }
-function renderWaveDetail() {
-  const s = wspots.find(x => x.id === wSel);
-  if (!s) return;
-  const now = nowKey();
-  $('wDetail').hidden = false;
-  $('wName').textContent = s.name;
-  $('wWhere').innerHTML = `<a href="https://www.openstreetmap.org/?mlat=${s.lat}&mlon=${s.lon}#map=11/${s.lat}/${s.lon}" target="_blank" rel="noopener">Σημείο στον χάρτη</a> · προσεγγιστικό`;
+function waveBlock(s, now) {
   const index = new Map(s.times.map((t, i) => [t, i]));
-  $('wDays').innerHTML = [...new Set(s.times.map(dayOf))].map(d => {
+  const days = [...new Set(s.times.map(dayOf))].map(d => {
     const x = asDate(d);
     const cells = HOURS.map(h => {
       const key = `${d}T${String(h).padStart(2, '0')}:00`;
       const i = index.get(key);
       if (i == null || s.mean[i] == null) return `<div class="hcell none"><span class="h">${h}</span><span class="v">–</span></div>`;
       const ag = AGREE[s.agree[i]] || ['', ''];
-      return `<button type="button" class="hcell w${hbin(s.mean[i])}${key < now ? ' past' : ''}${i === wHour ? ' sel' : ''}" data-whour="${i}" aria-label="${h}:00, ${m1(s.mean[i])} μέτρα, περίοδος ${m1(s.period[i])} δευτερόλεπτα. ${ag[1]}"><span class="h">${h}</span>${s.dir[i] == null ? '' : arrow(s.dir[i])}<span class="v">${m1(s.mean[i])}</span><span class="g">${s.period[i] == null ? '' : m1(s.period[i]) + 'δ'}</span><span class="a" aria-hidden="true">${ag[0]}</span></button>`;
+      return `<button type="button" class="hcell w${hbin(s.mean[i])}${key < now ? ' past' : ''}${i === wHour[s.id] ? ' sel' : ''}" data-whour="${i}" data-wid="${esc(s.id)}" aria-label="${esc(s.name)}, ${h}:00, ${m1(s.mean[i])} μέτρα, περίοδος ${m1(s.period[i])} δευτερόλεπτα. ${ag[1]}"><span class="h">${h}</span>${s.dir[i] == null ? '' : arrow(s.dir[i])}<span class="v">${m1(s.mean[i])}</span><span class="g">${s.period[i] == null ? '' : m1(s.period[i]) + 'δ'}</span><span class="a" aria-hidden="true">${ag[0]}</span></button>`;
     }).join('');
     return `<div class="day"><div class="day-name">${WDL[x.getDay()]}<small>${x.getDate()} ${MO[x.getMonth()]}</small></div><div class="hours">${cells}</div></div>`;
   }).join('');
-  const i = wHour;
-  if (i == null || s.mean[i] == null) { $('wPanel').hidden = true; return; }
-  $('wPanel').hidden = false;
-  const t = s.times[i], x = asDate(dayOf(t));
-  const rows = Object.keys(s.models).map(k => ({ name: WMODELS[k], h: s.models[k].h[i], p: s.models[k].p[i], d: s.models[k].d[i] })).filter(r => r.h != null).sort((a, b) => b.h - a.h);
-  const top = Math.max(1, ...rows.map(r => r.h));
-  const pc = v => Math.min(100, v / top * 100);
-  const ag = AGREE[s.agree[i]] || ['', ''];
-  const from = s.dir[i] == null ? '' : `, από ${COMPASS[dirIdx(s.dir[i])]}`;
-  $('wPanel').innerHTML = `<h3 style="font-size:23px">${WDL[x.getDay()]} ${x.getDate()} ${MO[x.getMonth()]}, ${t.slice(11, 16)}: τι λέει κάθε μοντέλο</h3>
-    <div class="hsum"><b>${m1(s.mean[i])} μέτρα</b>, περίοδος ${m1(s.period[i])} δευτερόλεπτα${from}. Εύρος ${m1(s.min[i])}–${m1(s.max[i])} μέτρα από ${s.count[i]} μοντέλα. ${ag[0]} ${ag[1]}.</div>
-    <div>${rows.map(r => `<div class="mrow"><span class="mname">${esc(r.name)}</span><span class="track" aria-hidden="true"><span class="fill" style="width:${pc(r.h)}%"></span><span class="meanline" style="left:${pc(s.mean[i])}%"></span></span><span class="nums">${r.d == null ? '' : arrow(r.d)}<b style="font-weight:600">${m1(r.h)} μ</b><span class="gg">${r.p == null ? '' : m1(r.p) + ' δ'}</span></span></div>`).join('')}</div>
-    <div class="key">Η κάθετη γραμμή είναι ο μέσος όρος.</div>`;
+  let panel = '';
+  const i = wHour[s.id];
+  if (i != null && s.mean[i] != null) {
+    const t = s.times[i], x = asDate(dayOf(t));
+    const rows = Object.keys(s.models).map(k => ({ name: WMODELS[k], h: s.models[k].h[i], p: s.models[k].p[i], d: s.models[k].d[i] })).filter(r => r.h != null).sort((a, b) => b.h - a.h);
+    const top = Math.max(1, ...rows.map(r => r.h));
+    const pc = v => Math.min(100, v / top * 100);
+    const ag = AGREE[s.agree[i]] || ['', ''];
+    const from = s.dir[i] == null ? '' : `, από ${COMPASS[dirIdx(s.dir[i])]}`;
+    panel = `<div class="wpanel"><h3 style="font-size:23px">${WDL[x.getDay()]} ${x.getDate()} ${MO[x.getMonth()]}, ${t.slice(11, 16)}: τι λέει κάθε μοντέλο</h3>
+      <div class="hsum"><b>${m1(s.mean[i])} μέτρα</b>, περίοδος ${m1(s.period[i])} δευτερόλεπτα${from}. Εύρος ${m1(s.min[i])}–${m1(s.max[i])} μέτρα από ${s.count[i]} μοντέλα. ${ag[0]} ${ag[1]}.</div>
+      <div>${rows.map(r => `<div class="mrow"><span class="mname">${esc(r.name)}</span><span class="track" aria-hidden="true"><span class="fill" style="width:${pc(r.h)}%"></span><span class="meanline" style="left:${pc(s.mean[i])}%"></span></span><span class="nums">${r.d == null ? '' : arrow(r.d)}<b style="font-weight:600">${m1(r.h)} μ</b><span class="gg">${r.p == null ? '' : m1(r.p) + ' δ'}</span></span></div>`).join('')}</div>
+      <div class="key">Η κάθετη γραμμή είναι ο μέσος όρος.</div></div>`;
+  }
+  return `<div class="wblock" id="wb-${esc(s.id)}"><div class="spot-head"><h2>${esc(s.name)}</h2><span class="sec-note" style="margin:0"><a href="https://www.openstreetmap.org/?mlat=${s.lat}&mlon=${s.lon}#map=11/${s.lat}/${s.lon}" target="_blank" rel="noopener">Σημείο στον χάρτη</a> · προσεγγιστικό</span></div><div class="days">${days}</div>${panel}</div>`;
 }
 function renderWaves() {
   const now = nowKey();
   renderWaveMatrix(now);
-  const s = wspots.find(x => x.id === wSel);
-  if (wHour == null) wHour = wFirst(s, now);
-  renderWaveDetail();
+  wspots.forEach(s => { if (wHour[s.id] == null) wHour[s.id] = wFirst(s, now); });
+  $('wDetail').innerHTML = wspots.map(s => waveBlock(s, now)).join('');
 }
 document.addEventListener('click', e => {
   const sp = e.target.closest('[data-wspot]');
   if (sp) {
     wSel = sp.dataset.wspot;
-    const s = wspots.find(x => x.id === wSel);
-    wHour = sp.dataset.i != null ? Number(sp.dataset.i) : wFirst(s, nowKey());
-    renderWaveMatrix(nowKey());
-    renderWaveDetail();
+    if (sp.dataset.i != null) wHour[wSel] = Number(sp.dataset.i);
+    renderWaves();
+    $('wb-' + wSel)?.scrollIntoView({ block: 'start' });
     return;
   }
   const h = e.target.closest('[data-whour]');
-  if (h) { wHour = Number(h.dataset.whour); renderWaveDetail(); }
+  if (h) { wHour[h.dataset.wid] = Number(h.dataset.whour); renderWaves(); }
 });
+
+// Background: satellite image centred on the spot chosen last.
+const BG_LAYER = 's2cloudless-2024_3857', BG_Z = 13, BG_T = 256;
+let bgCur = null, bgDone = false, bgTimer;
+function setBg(s) {
+  bgCur = s;
+  const host = $('bg'), W = window.innerWidth, H = window.innerHeight + 120;
+  const n = Math.pow(2, BG_Z), rad = s.lat * Math.PI / 180;
+  const fx = (s.lon + 180) / 360 * n;
+  const fy = (1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * n;
+  const layer = document.createElement('div');
+  layer.className = 'bg-layer';
+  for (let y = Math.floor(fy - H / 2 / BG_T); y <= Math.floor(fy + H / 2 / BG_T); y++) {
+    for (let x = Math.floor(fx - W / 2 / BG_T); x <= Math.floor(fx + W / 2 / BG_T); x++) {
+      const img = new Image();
+      img.alt = '';
+      img.style.left = Math.round((x - fx) * BG_T + W / 2) + 'px';
+      img.style.top = Math.round((y - fy) * BG_T + H / 2) + 'px';
+      img.src = `https://tiles.maps.eox.at/wmts/1.0.0/${BG_LAYER}/default/g/${BG_Z}/${y}/${x}.jpg`;
+      layer.appendChild(img);
+    }
+  }
+  const old = [...host.children];
+  host.appendChild(layer);
+  requestAnimationFrame(() => requestAnimationFrame(() => layer.classList.add('on')));
+  setTimeout(() => old.forEach(o => o.remove()), 800);
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-spot],[data-wspot]');
+  if (!a) return;
+  const s = a.dataset.spot ? spots.find(x => x.id === a.dataset.spot) : wspots.find(x => x.id === a.dataset.wspot);
+  if (s) setBg(s);
+});
+window.addEventListener('resize', () => { clearTimeout(bgTimer); bgTimer = setTimeout(() => { if (bgCur) setBg(bgCur); }, 250); });
 async function loadWaves() {
   let c = null;
   try { c = JSON.parse(localStorage.getItem(WCACHE) || 'null'); } catch (e) {}
