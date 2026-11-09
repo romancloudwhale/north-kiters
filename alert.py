@@ -1,5 +1,5 @@
 # Hourly check: sends one ntfy notification when the multi-model forecast
-# reaches the threshold at a spot on a day that has not been announced yet.
+# reaches the threshold at a spot tomorrow, about 24 hours before the wind starts.
 import datetime as dt
 import json
 import math
@@ -66,19 +66,25 @@ def main(dry):
     for sid, name, lat, lon in SPOTS:
         data = fetch(lat, lon)
         now = dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=data["utc_offset_seconds"])
-        now_key = now.strftime("%Y-%m-%dT%H:00")
         today = now.strftime("%Y-%m-%d")
-        best = {}
+        tomorrow = (now + dt.timedelta(days=1)).strftime("%Y-%m-%d")
+        limit = (now + dt.timedelta(hours=24)).strftime("%Y-%m-%dT%H:00")
+        best, first = None, None
         for i, t in enumerate(data["hourly"]["time"]):
             hour = int(t[11:13])
-            if t < now_key or hour < 8 or hour > 20:
+            if t[:10] != tomorrow or hour < 8 or hour > 20:
                 continue
             r = hour_mean(data["hourly"], i)
-            if r and (t[:10] not in best or r[0] > best[t[:10]][0]):
-                best[t[:10]] = (r[0], r[1], t[11:16])
-        for day, (mean, deg, at) in best.items():
-            if shown(mean) >= THRESHOLD and f"{sid}|{day}" not in sent:
-                found.append((day, name, shown(mean), COMPASS[round(deg / 45) % 8], at, f"{sid}|{day}"))
+            if not r:
+                continue
+            if first is None and shown(r[0]) >= THRESHOLD:
+                first = t
+            if best is None or r[0] > best[0]:
+                best = (r[0], r[1], t[11:16])
+        # Announce tomorrow only, once its first windy hour is 24 hours away; nothing late at night.
+        key = f"{sid}|{tomorrow}|24h"
+        if first and first <= limit and now.hour <= 21 and key not in sent:
+            found.append((tomorrow, name, shown(best[0]), COMPASS[round(best[1] / 45) % 8], best[2], key))
 
     found.sort()
     lines, last = [], None
@@ -93,7 +99,7 @@ def main(dry):
     if dry:
         return
     if lines:
-        body = json.dumps({"topic": TOPIC, "title": f"Άνεμος {THRESHOLD}+ κόμβοι", "message": "\n".join(lines),
+        body = json.dumps({"topic": TOPIC, "title": f"Αύριο άνεμος {THRESHOLD}+ κόμβοι", "message": "\n".join(lines),
                            "tags": ["dash"], "priority": 4, "click": SITE}).encode("utf-8")
         req = urllib.request.Request("https://ntfy.sh/", data=body, headers={"Content-Type": "application/json"})
         urllib.request.urlopen(req, timeout=30).read()
