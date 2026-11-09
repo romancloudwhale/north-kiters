@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
-<title>Spots Ανέμου</title>
+<title>North Kiters</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -114,6 +114,12 @@ tr.sel .spot-btn { color: var(--accent); text-decoration: underline; text-underl
 .wpanel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; }
 .wpanel > * { min-width: 0; }
 @media (prefers-reduced-motion: reduce) { .bg-layer { transition: none; } }
+.live { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin-top: 8px; font-size: 13px; }
+.live-label { font-weight: 600; }
+.live-btn { display: inline-block; padding: 6px 11px; border-radius: 5px; background: var(--surface); border: 1px solid var(--line); color: var(--ink); text-decoration: none; font-weight: 600; }
+.live-btn:hover { border-color: var(--accent); }
+.live-btn small { font-weight: 400; color: var(--muted); font-size: 12px; }
+.live-none { color: var(--muted); }
 footer { color: var(--muted); font-size: 13px; max-width: 62em; }
 </style>
 
@@ -123,7 +129,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 62em; }
 <div id="bgShade" aria-hidden="true"></div>
 <div class="wrap">
   <header>
-    <h1>Spots Ανέμου</h1>
+    <h1>North Kiters</h1>
     <p id="lead" style="margin:0">Φορτώνουν οι προγνώσεις για τα spot…</p>
     <div id="sync" role="status"></div>
     <div class="credit">Φόντο: EOxCloudless <a href="https://cloudless.eox.at" target="_blank" rel="noopener">cloudless.eox.at</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2024), CC BY-NC-SA 4.0</div>
@@ -140,6 +146,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 62em; }
   <section id="detail" hidden aria-label="Το spot που διάλεξες">
     <div>
       <div class="spot-head"><h2 id="spotName"></h2><span id="spotWhere" class="sec-note" style="margin:0"></span></div>
+      <div id="spotLive"></div>
       <p class="sec-note">Γραμμή: μέσος όρος των μοντέλων. Σκιά: από το χαμηλότερο ως το υψηλότερο μοντέλο. Όσο στενεύει η σκιά, τόσο πιο σίγουρη είναι η πρόγνωση.</p>
       <div class="chart" id="chart"><div id="tip" hidden></div></div>
     </div>
@@ -165,6 +172,15 @@ footer { color: var(--muted); font-size: 13px; max-width: 62em; }
       <span>Το βέλος δείχνει προς τα πού πηγαίνει το κύμα.</span>
       <span>● συμφωνούν ◐ μέτρια ○ διαφωνούν</span>
     </div>
+  </section>
+  <section aria-label="Ειδοποιήσεις">
+    <h2>Ειδοποιήσεις στο κινητό</h2>
+    <p class="sec-note">Ειδοποίηση όταν η πρόγνωση φτάνει τους 15 κόμβους σε κάποιο spot ανέμου, μία φορά για κάθε spot και μέρα.</p>
+    <ol style="margin:0;padding-left:20px;display:grid;gap:4px">
+      <li>Κατέβασε την εφαρμογή ntfy για <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Android</a> ή <a href="https://apps.apple.com/us/app/ntfy/id1625396347" target="_blank" rel="noopener">iPhone</a>.</li>
+      <li>Πάτα το <b>+</b> και γράψε το θέμα: <code style="user-select:all;font-weight:600;overflow-wrap:anywhere">spots-anemou-7kq2mx9f</code></li>
+      <li>Πάτα <b>Subscribe</b> και επίτρεψε τις ειδοποιήσεις.</li>
+    </ol>
   </section>
   <footer>Μέσος όρος από 8 ανεξάρτητα μοντέλα (ECMWF, GFS, ICON, Météo-France, UKMO, GEM, JMA, GRAPES), άνεμος στα 10 μέτρα, δεδομένα από το <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0). Τα κύματα είναι μέσος όρος από 4 μοντέλα κυμάτων (ECMWF, GFS Wave, MFWAM, GWAM) και αφορούν τα ανοιχτά κοντά στο spot, οπότε στην παραλία μπορεί να διαφέρουν. Είναι πρόγνωση και όχι εγγύηση, οπότε έλεγξε τις συνθήκες στο spot πριν βγεις.</footer>
 </div>
@@ -319,6 +335,7 @@ function renderDetail() {
   const now = nowKey();
   $('detail').hidden = false;
   $('spotName').textContent = s.name;
+  $('spotLive').innerHTML = liveHtml(s.id);
   $('spotWhere').innerHTML = `<a href="https://www.openstreetmap.org/?mlat=${s.lat}&mlon=${s.lon}#map=12/${s.lat}/${s.lon}" target="_blank" rel="noopener">Σημείο στον χάρτη</a>${s.approx ? ' · προσεγγιστικό' : ''}`;
   drawChart(s, now);
   renderDays(s, now);
@@ -355,6 +372,22 @@ let rt;
 window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (spots.length) renderDetail(); }, 150); });
 
 $('matrix').textContent = '';
+// Live views near each spot. They open on the provider's own site.
+const ST = n => 'https://penteli.meteo.gr/stations/' + n + '/';
+const POTAMOS = 'https://www.meteology.gr/weathercams/kamera-potamos-epanomis/';
+const LIVE = {
+  kleidi: [{ t: 'Σταθμός Κλειδί', u: ST('kleidi') }],
+  alykes: [{ t: 'Κάμερα Ολυμπιακή Ακτή', n: '10 χλμ', u: 'https://www.meteology.gr/weathercams/kamera-olympiakis-aktis-katerinis/' }],
+  epanomi: [{ t: 'Κάμερα Ποταμός Επανομής', u: POTAMOS }, { t: 'Σταθμός Ν. Μηχανιώνα', n: '7 χλμ', u: ST('neamichaniona') }],
+  aggelohori: [{ t: 'Σταθμός Ν. Μηχανιώνα', n: '4 χλμ', u: ST('neamichaniona') }, { t: 'Κάμερα Ποταμός Επανομής', n: '13 χλμ', u: POTAMOS }],
+  vourvourou: [{ t: 'Σταθμός Βουρβουρού', u: ST('vourvourou-ekies') }],
+  parga: [{ t: 'Κάμερα Πάργα', u: 'https://www.skylinewebcams.com/webcam/ellada/epirus/preveza/parga.html' }, { t: 'Σταθμός Πάργα', u: ST('parga') }],
+};
+function liveHtml(id) {
+  const items = LIVE[id] || [];
+  if (!items.length) return '<div class="live"><span class="live-none">Δεν βρέθηκε live σταθμός ή κάμερα που να δουλεύει κοντά.</span></div>';
+  return '<div class="live"><span class="live-label">Live τώρα:</span>' + items.map(i => `<a class="live-btn" href="${esc(i.u)}" target="_blank" rel="noopener">${esc(i.t)}${i.n ? ` <small>${esc(i.n)}</small>` : ''}</a>`).join('') + '</div>';
+}
 // Waves: a separate section with its own spots, models and cache.
 const WSPOTS = [
   { id:'asprovalta', name:'Ασπροβάλτα', lat:40.715, lon:23.722 },
@@ -451,7 +484,7 @@ function waveBlock(s, now) {
       <div>${rows.map(r => `<div class="mrow"><span class="mname">${esc(r.name)}</span><span class="track" aria-hidden="true"><span class="fill" style="width:${pc(r.h)}%"></span><span class="meanline" style="left:${pc(s.mean[i])}%"></span></span><span class="nums">${r.d == null ? '' : arrow(r.d)}<b style="font-weight:600">${m1(r.h)} μ</b><span class="gg">${r.p == null ? '' : m1(r.p) + ' δ'}</span></span></div>`).join('')}</div>
       <div class="key">Η κάθετη γραμμή είναι ο μέσος όρος.</div></div>`;
   }
-  return `<div class="wblock" id="wb-${esc(s.id)}"><div class="spot-head"><h2>${esc(s.name)}</h2><span class="sec-note" style="margin:0"><a href="https://www.openstreetmap.org/?mlat=${s.lat}&mlon=${s.lon}#map=11/${s.lat}/${s.lon}" target="_blank" rel="noopener">Σημείο στον χάρτη</a> · προσεγγιστικό</span></div><div class="days">${days}</div>${panel}</div>`;
+  return `<div class="wblock" id="wb-${esc(s.id)}"><div class="spot-head"><h2>${esc(s.name)}</h2><span class="sec-note" style="margin:0"><a href="https://www.openstreetmap.org/?mlat=${s.lat}&mlon=${s.lon}#map=11/${s.lat}/${s.lon}" target="_blank" rel="noopener">Σημείο στον χάρτη</a> · προσεγγιστικό</span></div>${liveHtml(s.id)}<div class="days">${days}</div>${panel}</div>`;
 }
 function renderWaves() {
   const now = nowKey();
