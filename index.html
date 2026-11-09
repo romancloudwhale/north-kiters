@@ -557,6 +557,7 @@ async function loadWaves() {
   }
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - wLoaded > WMAX_AGE) loadWaves(); });
+setInterval(() => { if (Date.now() - wLoaded > WMAX_AGE) loadWaves(); }, 5 * 60 * 1000);
 loadWaves();
 (async () => {
   const SPOTS = [
@@ -616,6 +617,8 @@ loadWaves();
     }
   }
   document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - lastLoad > MAX_AGE) load(); });
+  // Keeps a page that stays open (for example as a desktop wallpaper) up to date.
+  setInterval(() => { if (Date.now() - lastLoad > MAX_AGE) load(); }, 5 * 60 * 1000);
   load();
 })();
 </script>
