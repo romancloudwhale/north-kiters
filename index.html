@@ -87,6 +87,10 @@ tr.sel .spot-btn { color: var(--accent); text-decoration: underline; text-underl
 .hcell .v { font-family: var(--display); font-size: 22px; line-height: 1; font-variant-numeric: tabular-nums; }
 .hcell .g { font-size: 11px; font-variant-numeric: tabular-nums; }
 .hcell .a { font-size: 10px; line-height: 1; }
+.wx { width: 13px; height: 13px; flex: none; color: #fff; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; vertical-align: -2px; }
+.mcell .wx { width: 16px; height: 16px; margin-left: 3px; opacity: .92; }
+.hsum .wx { width: 16px; height: 16px; vertical-align: -3px; }
+.hcell .h { display: inline-flex; align-items: center; gap: 2px; }
 .hcell.none { background: var(--w0); color: var(--muted); }
 @media (max-width: 520px) { .day { grid-template-columns: minmax(0, 1fr); gap: 3px; } .day-name small { display: inline; margin-left: 6px; } .hcell .arr { width: 11px; height: 11px; } }
 .key { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 3px 14px; }
@@ -198,7 +202,7 @@ footer { color: var(--muted); font-size: 13px; max-width: 62em; }
       <li>Πάτα <b>Subscribe</b> και επίτρεψε τις ειδοποιήσεις.</li>
     </ol>
   </section>
-  <footer>Μέσος όρος από 8 ανεξάρτητα μοντέλα (ECMWF, GFS, ICON, Météo-France, UKMO, GEM, JMA, GRAPES), άνεμος στα 10 μέτρα, δεδομένα από το <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0). Τα κύματα είναι μέσος όρος από 4 μοντέλα κυμάτων (ECMWF, GFS Wave, MFWAM, GWAM) και αφορούν τα ανοιχτά κοντά στο spot, οπότε στην παραλία μπορεί να διαφέρουν. Είναι πρόγνωση και όχι εγγύηση, οπότε έλεγξε τις συνθήκες στο spot πριν βγεις.</footer>
+  <footer>Μέσος όρος από 8 ανεξάρτητα μοντέλα (ECMWF, GFS, ICON, Météo-France, UKMO, GEM, JMA, GRAPES), άνεμος στα 10 μέτρα, δεδομένα από το <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0). Τα κύματα είναι μέσος όρος από 4 μοντέλα κυμάτων (ECMWF, GFS Wave, MFWAM, GWAM) και αφορούν τα ανοιχτά κοντά στο spot, οπότε στην παραλία μπορεί να διαφέρουν. Το εικονίδιο καιρού (ήλιος, σύννεφα, βροχή) είναι από το καλύτερο τοπικό μοντέλο του Open-Meteo για κάθε ώρα. Είναι πρόγνωση και όχι εγγύηση, οπότε έλεγξε τις συνθήκες στο spot πριν βγεις.</footer>
 </div>
 
 <script>
@@ -267,7 +271,7 @@ function renderMatrix(now) {
       const i = peak(s, d, now);
       if (i < 0) { html += `<td><span class="mcell none">–</span></td>`; return; }
       const label = `${s.name}, ${shortDay(d)}: ${Math.round(s.mean[i])} κόμβοι στις ${s.times[i].slice(11, 16)}, ${COMPASS[dirIdx(s.dir[i])]}`;
-      html += `<td><button type="button" class="mcell w${wbin(s.mean[i])}" data-spot="${esc(s.id)}" data-i="${i}" aria-label="${esc(label)}" title="${esc(label)}">${Math.round(s.mean[i])}${arrow(s.dir[i])}</button></td>`;
+      html += `<td><button type="button" class="mcell w${wbin(s.mean[i])}" data-spot="${esc(s.id)}" data-i="${i}" aria-label="${esc(label)}" title="${esc(label)}">${Math.round(s.mean[i])}${arrow(s.dir[i])}${wxIcon(s.id, s.times[i])}</button></td>`;
     });
     html += '</tr>';
   });
@@ -286,8 +290,8 @@ function renderDays(s, now) {
       if (i == null || s.mean[i] == null) return `<div class="hcell none"><span class="h">${h}</span><span class="v">–</span></div>`;
       const ag = AGREE[s.agree[i]] || ['', ''];
       const past = key < now.slice(0, 13) + ':00';
-      return `<button type="button" class="hcell w${wbin(s.mean[i])}${past ? ' past' : ''}${i === selHour ? ' sel' : ''}" data-hour="${i}" aria-label="${h}:00, ${Math.round(s.mean[i])} κόμβοι, ριπή ${Math.round(s.gust[i] ?? 0)}, ${COMPASS[dirIdx(s.dir[i])]}. ${ag[1]}">
-        <span class="h">${h}</span>${arrow(s.dir[i])}<span class="v">${Math.round(s.mean[i])}</span><span class="g">${s.gust[i] == null ? '' : Math.round(s.gust[i])}</span><span class="a" aria-hidden="true">${ag[0]}</span></button>`;
+      return `<button type="button" class="hcell w${wbin(s.mean[i])}${past ? ' past' : ''}${i === selHour ? ' sel' : ''}" data-hour="${i}" aria-label="${h}:00, ${Math.round(s.mean[i])} κόμβοι, ριπή ${Math.round(s.gust[i] ?? 0)}, ${COMPASS[dirIdx(s.dir[i])]}${wxWord(s.id, key, ', ')}. ${ag[1]}">
+        <span class="h">${h}${wxIcon(s.id, key)}</span>${arrow(s.dir[i])}<span class="v">${Math.round(s.mean[i])}</span><span class="g">${s.gust[i] == null ? '' : Math.round(s.gust[i])}</span><span class="a" aria-hidden="true">${ag[0]}</span></button>`;
     }).join('');
     return `<div class="day"><div class="day-name">${WDL[x.getDay()]}<small>${x.getDate()} ${MO[x.getMonth()]}</small></div><div class="hours">${cells}</div></div>`;
   }).join('');
@@ -303,7 +307,7 @@ function renderHour(s) {
   const pc = v => Math.min(100, v / top * 100);
   const ag = AGREE[s.agree[i]] || ['', ''];
   $('hourPanel').innerHTML = `<h3 style="font-size:23px">${WDL[x.getDay()]} ${x.getDate()} ${MO[x.getMonth()]}, ${t.slice(11, 16)}: τι λέει κάθε μοντέλο</h3>
-    <div class="hsum"><b>${Math.round(s.mean[i])} κόμβοι</b> (${bf(s.mean[i])} μποφόρ), ${DIRWORD[dirIdx(s.dir[i])]}, ριπές ${s.gust[i] == null ? '–' : Math.round(s.gust[i])}. Εύρος ${Math.round(s.min[i])}–${Math.round(s.max[i])} κόμβοι από ${s.count[i]} μοντέλα. ${ag[0]} ${ag[1]}.</div>
+    <div class="hsum"><b>${Math.round(s.mean[i])} κόμβοι</b> (${bf(s.mean[i])} μποφόρ), ${DIRWORD[dirIdx(s.dir[i])]}, ριπές ${s.gust[i] == null ? '–' : Math.round(s.gust[i])}. Εύρος ${Math.round(s.min[i])}–${Math.round(s.max[i])} κόμβοι από ${s.count[i]} μοντέλα. ${ag[0]} ${ag[1]}.${wxWord(s.id, t, ' Καιρός: ', true)}</div>
     <div>${rows.map(r => `<div class="mrow"><span class="mname">${esc(r.name)}</span><span class="track" aria-hidden="true"><span class="fill" style="width:${pc(r.v)}%"></span><span class="meanline" style="left:${pc(s.mean[i])}%"></span></span><span class="nums">${arrow(r.d)}<b style="font-weight:600">${Math.round(r.v)}</b><span class="gg">${r.g == null ? 'χωρίς ριπή' : 'ριπή ' + Math.round(r.g)}</span></span></div>`).join('')}</div>
     <div class="key">Η κάθετη γραμμή είναι ο μέσος όρος.</div>`;
 }
@@ -368,6 +372,7 @@ function renderAll() {
   const s = spots.find(x => x.id === selId);
   if (selHour == null || selHour >= s.times.length) selHour = firstHour(s, now);
   renderDetail();
+  ensureWx();
 }
 
 document.addEventListener('click', e => {
@@ -416,6 +421,65 @@ let wspots = [], wSel = 'asprovalta', wHour = {}, wLoaded = 0;
 const hbin = h => h < 0.3 ? 0 : h < 0.6 ? 1 : h < 1 ? 2 : h < 1.5 ? 3 : h < 2.5 ? 4 : 5;
 const m1 = v => v == null ? '–' : v.toFixed(1).replace('.', ',');
 const rr = (v, n) => { const p = Math.pow(10, n); return Math.round(v * p) / p; };
+
+// Weather icon per hour (sun, clouds, rain...): one request for all spots, best model of Open-Meteo.
+const WXCACHE = 'spots-weather-v1';
+let wx = {}, wxAt = 0, wxBusy = false, wxTried = 0;
+try { const c = JSON.parse(localStorage.getItem(WXCACHE) || 'null'); if (c && c.wx) { wx = c.wx; wxAt = c.at; } } catch (e) {}
+// Thin white line icons, drawn once and reused.
+(() => {
+  const C = 'M7.5 18h9.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.3 11.2 3.4 3.4 0 0 0 7.5 18z';
+  const CU = 'M7.5 14.5h9.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.3 7.7 3.4 3.4 0 0 0 7.5 14.5z';
+  const sym = (id, body) => `<symbol id="wx-${id}" viewBox="0 0 24 24">${body}</symbol>`;
+  document.body.insertAdjacentHTML('afterbegin', `<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <mask id="wx-cut"><rect width="24" height="24" fill="#fff"/><path d="M9 20.5h8a3.6 3.6 0 0 0 .4-7.15A5 5 0 0 0 8.1 13.9 3.3 3.3 0 0 0 9 20.5z" fill="#000" stroke="#000" stroke-width="3.2"/></mask>
+    ${sym('sun', '<circle cx="12" cy="12" r="4"/><path d="M12 2.8v2M12 19.2v2M2.8 12h2M19.2 12h2M5.5 5.5l1.4 1.4M17.1 17.1l1.4 1.4M5.5 18.5l1.4-1.4M17.1 6.9l1.4-1.4"/>')}
+    ${sym('moon', '<path d="M19.5 14.6A7.8 7.8 0 1 1 9.4 4.5a6.2 6.2 0 0 0 10.1 10.1z"/>')}
+    ${sym('partly', '<g mask="url(#wx-cut)"><circle cx="9" cy="9" r="3.4"/><path d="M9 2.6v1.5M2.6 9h1.5M4.5 4.5l1.1 1.1M13.5 4.5l-1.1 1.1M15.4 9h-1.5"/></g><path d="M9 20.5h8a3.6 3.6 0 0 0 .4-7.15A5 5 0 0 0 8.1 13.9 3.3 3.3 0 0 0 9 20.5z"/>')}
+    ${sym('cloud', `<path d="${C}"/>`)}
+    ${sym('drizzle', `<path d="${CU}"/><path d="M9.5 18.5v.01M13 19.5v.01M16.5 18.5v.01" stroke-width="2.4"/>`)}
+    ${sym('rain', `<path d="${CU}"/><path d="M9.8 17.5l-1 3.2M13.3 17.5l-1 3.2M16.8 17.5l-1 3.2"/>`)}
+    ${sym('storm', `<path d="${CU}"/><path d="M13.2 16.2l-2.4 3.4h3l-2.4 3.4"/>`)}
+    ${sym('snow', `<path d="${CU}"/><path d="M9.5 18v.01M13 18v.01M16.5 18v.01M11.2 21v.01M14.8 21v.01" stroke-width="2.4"/>`)}
+    ${sym('fog', '<path d="M4 8.5h16M6.5 12.5h11M4 16.5h16"/>')}
+  </svg>`);
+})();
+function wxKind(code, day) {
+  if (code == null) return null;
+  if (code >= 95) return ['storm', 'καταιγίδα'];
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return ['snow', 'χιόνι'];
+  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return ['rain', 'βροχή'];
+  if (code >= 51 && code <= 57) return ['drizzle', 'ψιχάλα'];
+  if (code === 45 || code === 48) return ['fog', 'ομίχλη'];
+  if (code === 3) return ['cloud', 'συννεφιά'];
+  if (code === 2) return day ? ['partly', 'λίγα σύννεφα'] : ['cloud', 'λίγα σύννεφα'];
+  return day ? ['sun', 'ήλιος'] : ['moon', 'καθαρός ουρανός'];
+}
+const wxSvg = k => `<svg class="wx" viewBox="0 0 24 24" aria-hidden="true"><title>${k[1]}</title><use href="#wx-${k[0]}"/></svg>`;
+function wxAtTime(id, t) {
+  const d = wx[id];
+  if (!d) return null;
+  const i = d.t.indexOf(t);
+  return i < 0 ? null : wxKind(d.c[i], d.n[i]);
+}
+const wxIcon = (id, t) => { const k = wxAtTime(id, t); return k ? wxSvg(k) : ''; };
+const wxWord = (id, t, pre, cap) => { const k = wxAtTime(id, t); if (!k) return ''; const w = cap ? k[1][0].toUpperCase() + k[1].slice(1) + '.' : k[1]; return pre + (cap ? wxSvg(k) + ' ' : '') + w; };
+function ensureWx() {
+  const list = [...spots, ...wspots].filter((s, i, a) => a.findIndex(o => o.id === s.id) === i);
+  if (!list.length || wxBusy || Date.now() - wxTried < 5 * 60 * 1000) return;
+  if (Date.now() - wxAt < WMAX_AGE && list.every(s => wx[s.id])) return;
+  wxBusy = true;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${list.map(s => s.lat).join(',')}&longitude=${list.map(s => s.lon).join(',')}&hourly=weather_code,is_day&timezone=Europe%2FAthens&forecast_days=5`;
+  fetch(url).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(j => {
+    const arr = Array.isArray(j) ? j : [j], next = {};
+    arr.forEach((d, k) => { if (d && d.hourly && list[k]) next[list[k].id] = { t: d.hourly.time, c: d.hourly.weather_code, n: d.hourly.is_day }; });
+    wx = next; wxAt = Date.now(); wxBusy = false;
+    if (!list.every(s => next[s.id])) wxTried = Date.now();
+    try { localStorage.setItem(WXCACHE, JSON.stringify({ at: wxAt, wx })); } catch (e) {}
+    if (spots.length) renderAll();
+    if (wspots.length) renderWaves();
+  }).catch(() => { wxBusy = false; wxTried = Date.now(); });
+}
 
 async function fetchWaves(s) {
   const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${s.lat}&longitude=${s.lon}&hourly=wave_height,wave_direction,wave_period&models=${Object.keys(WMODELS).join(',')}&timezone=Europe%2FAthens&forecast_days=5&cell_selection=sea`;
@@ -466,7 +530,7 @@ function renderWaveMatrix(now) {
       const i = wPeak(s, d, now);
       if (i < 0) { html += '<td><span class="mcell none">–</span></td>'; return; }
       const label = `${s.name}, ${shortDay(d)}: ${m1(s.mean[i])} μέτρα στις ${s.times[i].slice(11, 16)}`;
-      html += `<td><button type="button" class="mcell w${hbin(s.mean[i])}" data-wspot="${esc(s.id)}" data-i="${i}" aria-label="${esc(label)}" title="${esc(label)}">${m1(s.mean[i])}${s.dir[i] == null ? '' : arrow(s.dir[i])}</button></td>`;
+      html += `<td><button type="button" class="mcell w${hbin(s.mean[i])}" data-wspot="${esc(s.id)}" data-i="${i}" aria-label="${esc(label)}" title="${esc(label)}">${m1(s.mean[i])}${s.dir[i] == null ? '' : arrow(s.dir[i])}${wxIcon(s.id, s.times[i])}</button></td>`;
     });
     html += '</tr>';
   });
@@ -482,7 +546,7 @@ function waveBlock(s, now) {
       const i = index.get(key);
       if (i == null || s.mean[i] == null) return `<div class="hcell none"><span class="h">${h}</span><span class="v">–</span></div>`;
       const ag = AGREE[s.agree[i]] || ['', ''];
-      return `<button type="button" class="hcell w${hbin(s.mean[i])}${key < now ? ' past' : ''}${i === wHour[s.id] ? ' sel' : ''}" data-whour="${i}" data-wid="${esc(s.id)}" aria-label="${esc(s.name)}, ${h}:00, ${m1(s.mean[i])} μέτρα, περίοδος ${m1(s.period[i])} δευτερόλεπτα. ${ag[1]}"><span class="h">${h}</span>${s.dir[i] == null ? '' : arrow(s.dir[i])}<span class="v">${m1(s.mean[i])}</span><span class="g">${s.period[i] == null ? '' : m1(s.period[i]) + 'δ'}</span><span class="a" aria-hidden="true">${ag[0]}</span></button>`;
+      return `<button type="button" class="hcell w${hbin(s.mean[i])}${key < now ? ' past' : ''}${i === wHour[s.id] ? ' sel' : ''}" data-whour="${i}" data-wid="${esc(s.id)}" aria-label="${esc(s.name)}, ${h}:00, ${m1(s.mean[i])} μέτρα, περίοδος ${m1(s.period[i])} δευτερόλεπτα${wxWord(s.id, key, ', ')}. ${ag[1]}"><span class="h">${h}${wxIcon(s.id, key)}</span>${s.dir[i] == null ? '' : arrow(s.dir[i])}<span class="v">${m1(s.mean[i])}</span><span class="g">${s.period[i] == null ? '' : m1(s.period[i]) + 'δ'}</span><span class="a" aria-hidden="true">${ag[0]}</span></button>`;
     }).join('');
     return `<div class="day"><div class="day-name">${WDL[x.getDay()]}<small>${x.getDate()} ${MO[x.getMonth()]}</small></div><div class="hours">${cells}</div></div>`;
   }).join('');
@@ -496,7 +560,7 @@ function waveBlock(s, now) {
     const ag = AGREE[s.agree[i]] || ['', ''];
     const from = s.dir[i] == null ? '' : `, από ${COMPASS[dirIdx(s.dir[i])]}`;
     panel = `<div class="wpanel"><h3 style="font-size:23px">${WDL[x.getDay()]} ${x.getDate()} ${MO[x.getMonth()]}, ${t.slice(11, 16)}: τι λέει κάθε μοντέλο</h3>
-      <div class="hsum"><b>${m1(s.mean[i])} μέτρα</b>, περίοδος ${m1(s.period[i])} δευτερόλεπτα${from}. Εύρος ${m1(s.min[i])}–${m1(s.max[i])} μέτρα από ${s.count[i]} μοντέλα. ${ag[0]} ${ag[1]}.</div>
+      <div class="hsum"><b>${m1(s.mean[i])} μέτρα</b>, περίοδος ${m1(s.period[i])} δευτερόλεπτα${from}. Εύρος ${m1(s.min[i])}–${m1(s.max[i])} μέτρα από ${s.count[i]} μοντέλα. ${ag[0]} ${ag[1]}.${wxWord(s.id, t, ' Καιρός: ', true)}</div>
       <div>${rows.map(r => `<div class="mrow"><span class="mname">${esc(r.name)}</span><span class="track" aria-hidden="true"><span class="fill" style="width:${pc(r.h)}%"></span><span class="meanline" style="left:${pc(s.mean[i])}%"></span></span><span class="nums">${r.d == null ? '' : arrow(r.d)}<b style="font-weight:600">${m1(r.h)} μ</b><span class="gg">${r.p == null ? '' : m1(r.p) + ' δ'}</span></span></div>`).join('')}</div>
       <div class="key">Η κάθετη γραμμή είναι ο μέσος όρος.</div></div>`;
   }
@@ -507,6 +571,7 @@ function renderWaves() {
   renderWaveMatrix(now);
   wspots.forEach(s => { if (wHour[s.id] == null) wHour[s.id] = wFirst(s, now); });
   $('wDetail').innerHTML = wspots.map(s => waveBlock(s, now)).join('');
+  ensureWx();
 }
 document.addEventListener('click', e => {
   const sp = e.target.closest('[data-wspot]');
