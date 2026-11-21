@@ -144,6 +144,8 @@ tr.sel .spot-btn { color: var(--accent); text-decoration: underline; text-underl
 .live-btn:hover { border-color: var(--accent); }
 .live-btn small { font-weight: 400; color: var(--muted); font-size: 12px; }
 .live-none { color: var(--muted); }
+.hcell.islive { box-shadow: inset 0 0 0 2px #C2410C; }
+.lv-tag { display: inline-block; padding: 0 3px; border-radius: 3px; background: #C2410C; color: #fff; font-size: 9px; font-weight: 600; letter-spacing: .04em; }
 .stbox { position: relative; display: inline-flex; gap: 2px; margin-top: 16px; padding: 4px; border-radius: 10px; background: #C3C3C3; border: 1px solid var(--line); text-decoration: none; line-height: 0; }
 .stbox img { width: 116px; height: 116px; display: block; border-radius: 6px; }
 .st-tag { position: absolute; left: 8px; top: -9px; z-index: 1; display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; background: #C2410C; color: #fff; font: 600 10px/1.2 var(--body); letter-spacing: .06em; }
@@ -303,6 +305,49 @@ function renderMatrix(now) {
   $('scale').innerHTML = '<b>Κόμβοι</b>' + SCALE.map(([a, b], n) => `<span class="w${n}">${b == null ? a + '+' : a + '–' + b}</span>`).join('');
 }
 
+// Live station readings, written to live.json by the Wind alert workflow every 15 minutes.
+// For a spot with a recent reading, the current hour shows what the station measures instead of the forecast.
+let liveData = {};
+function minsSince(localTime) {
+  const p = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Athens', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date()).replace(' ', 'T');
+  const a = Date.parse(p + ':00Z'), b = Date.parse(String(localTime).slice(0, 16) + ':00Z');
+  return isNaN(a) || isNaN(b) ? null : (a - b) / 60000;
+}
+function liveFor(id) {
+  const l = liveData[id];
+  if (!l || !l.obsTime || l.wind == null) return null;
+  const age = minsSince(l.obsTime);
+  return age != null && age > -10 && age <= 45 ? l : null;
+}
+function applyLive() {
+  const now = nowKey(), h = hourOf(now);
+  spots.forEach(s => {
+    (s._live || []).forEach(o => { s.mean[o.i] = o.mean; s.gust[o.i] = o.gust; s.dir[o.i] = o.dir; s.min[o.i] = o.min; s.max[o.i] = o.max; });
+    s._live = []; s.liveIdx = [];
+    const l = liveFor(s.id);
+    if (!l || !s.times) return;
+    // The current hour, and on odd hours also the even-hour cell that the hour grid shows.
+    const keys = [now];
+    if (h % 2) keys.push(now.slice(0, 11) + String(h - 1).padStart(2, '0') + ':00');
+    keys.forEach(k => {
+      const i = s.times.indexOf(k);
+      if (i < 0) return;
+      s._live.push({ i, mean: s.mean[i], gust: s.gust[i], dir: s.dir[i], min: s.min[i], max: s.max[i] });
+      s.mean[i] = l.wind; s.gust[i] = l.gust ?? s.gust[i]; s.dir[i] = l.dir ?? s.dir[i];
+      s.min[i] = Math.min(s.min[i] ?? l.wind, l.wind); s.max[i] = Math.max(s.max[i] ?? l.wind, l.wind);
+      s.liveIdx.push(i);
+    });
+  });
+}
+async function loadLive() {
+  try {
+    const r = await fetch('live.json?t=' + Date.now(), { cache: 'no-store' });
+    if (r.ok) { liveData = await r.json(); if (spots.length) renderAll(); }
+  } catch (e) {}
+}
+loadLive();
+setInterval(loadLive, 2 * 60 * 1000);
+
 function renderDays(s, now) {
   const days = [...new Set(s.times.map(dayOf))];
   const index = new Map(s.times.map((t, i) => [t, i]));
@@ -313,9 +358,10 @@ function renderDays(s, now) {
       const i = index.get(key);
       if (i == null || s.mean[i] == null) return `<div class="hcell none"><span class="h">${h}</span><span class="v">–</span></div>`;
       const ag = AGREE[s.agree[i]] || ['', ''];
-      const past = key < now.slice(0, 13) + ':00';
-      return `<button type="button" class="hcell w${wbin(s.mean[i])}${past ? ' past' : ''}${i === selHour ? ' sel' : ''}" data-hour="${i}" aria-label="${h}:00, ${Math.round(s.mean[i])} κόμβοι, ριπή ${Math.round(s.gust[i] ?? 0)}, ${COMPASS[dirIdx(s.dir[i])]}${wxWord(s.id, key, ', ')}. ${ag[1]}">
-        <span class="h">${h}${wxIcon(s.id, key)}</span>${arrow(s.dir[i])}<span class="v">${Math.round(s.mean[i])}</span><span class="g">${s.gust[i] == null ? '' : Math.round(s.gust[i])}</span><span class="a" aria-hidden="true">${ag[0]}</span></button>`;
+      const isLive = (s.liveIdx || []).includes(i);
+      const past = !isLive && key < now.slice(0, 13) + ':00';
+      return `<button type="button" class="hcell w${wbin(s.mean[i])}${past ? ' past' : ''}${isLive ? ' islive' : ''}${i === selHour ? ' sel' : ''}" data-hour="${i}" aria-label="${h}:00, ${Math.round(s.mean[i])} κόμβοι, ριπή ${Math.round(s.gust[i] ?? 0)}, ${COMPASS[dirIdx(s.dir[i])]}${isLive ? ', μέτρηση live σταθμού' : wxWord(s.id, key, ', ') + '. ' + ag[1]}">
+        <span class="h">${h}${isLive ? '' : wxIcon(s.id, key)}</span>${arrow(s.dir[i])}<span class="v">${Math.round(s.mean[i])}</span><span class="g">${s.gust[i] == null ? '' : Math.round(s.gust[i])}</span><span class="a" aria-hidden="true">${isLive ? '<b class="lv-tag">LIVE</b>' : ag[0]}</span></button>`;
     }).join('');
     return `<div class="day"><div class="day-name">${WDL[x.getDay()]}<small>${x.getDate()} ${MO[x.getMonth()]}</small></div><div class="hours">${cells}</div></div>`;
   }).join('');
@@ -330,9 +376,14 @@ function renderHour(s) {
   const top = Math.max(20, ...rows.map(r => r.v));
   const pc = v => Math.min(100, v / top * 100);
   const ag = AGREE[s.agree[i]] || ['', ''];
+  const lo = (s._live || []).find(o => o.i === i), l = lo ? liveFor(s.id) : null;
+  const sum = l
+    ? `<b>${Math.round(s.mean[i])} κόμβοι</b> (${bf(s.mean[i])} μποφόρ), ${DIRWORD[dirIdx(s.dir[i])]}, ριπή ${s.gust[i] == null ? '–' : Math.round(s.gust[i])}: <b>μέτρηση του live σταθμού</b> στις ${esc(String(l.obsTime).slice(11, 16))}. Τα μοντέλα για αυτή την ώρα έδιναν ${lo.mean == null ? '–' : Math.round(lo.mean)} κόμβους.`
+    : `<b>${Math.round(s.mean[i])} κόμβοι</b> (${bf(s.mean[i])} μποφόρ), ${DIRWORD[dirIdx(s.dir[i])]}, ριπές ${s.gust[i] == null ? '–' : Math.round(s.gust[i])}. Εύρος ${Math.round(s.min[i])}–${Math.round(s.max[i])} κόμβοι από ${s.count[i]} μοντέλα. ${ag[0]} ${ag[1]}.${wxWord(s.id, t, ' Καιρός: ', true)}`;
+  const meanFc = lo && lo.mean != null ? lo.mean : s.mean[i];
   $('hourPanel').innerHTML = `<h3 style="font-size:23px">${WDL[x.getDay()]} ${x.getDate()} ${MO[x.getMonth()]}, ${t.slice(11, 16)}: τι λέει κάθε μοντέλο</h3>
-    <div class="hsum"><b>${Math.round(s.mean[i])} κόμβοι</b> (${bf(s.mean[i])} μποφόρ), ${DIRWORD[dirIdx(s.dir[i])]}, ριπές ${s.gust[i] == null ? '–' : Math.round(s.gust[i])}. Εύρος ${Math.round(s.min[i])}–${Math.round(s.max[i])} κόμβοι από ${s.count[i]} μοντέλα. ${ag[0]} ${ag[1]}.${wxWord(s.id, t, ' Καιρός: ', true)}</div>
-    <div>${rows.map(r => `<div class="mrow"><span class="mname">${esc(r.name)}</span><span class="track" aria-hidden="true"><span class="fill" style="width:${pc(r.v)}%"></span><span class="meanline" style="left:${pc(s.mean[i])}%"></span></span><span class="nums">${arrow(r.d)}<b style="font-weight:600">${Math.round(r.v)}</b><span class="gg">${r.g == null ? 'χωρίς ριπή' : 'ριπή ' + Math.round(r.g)}</span></span></div>`).join('')}</div>
+    <div class="hsum">${sum}</div>
+    <div>${rows.map(r => `<div class="mrow"><span class="mname">${esc(r.name)}</span><span class="track" aria-hidden="true"><span class="fill" style="width:${pc(r.v)}%"></span><span class="meanline" style="left:${pc(meanFc)}%"></span></span><span class="nums">${arrow(r.d)}<b style="font-weight:600">${Math.round(r.v)}</b><span class="gg">${r.g == null ? 'χωρίς ριπή' : 'ριπή ' + Math.round(r.g)}</span></span></div>`).join('')}</div>
     <div class="key">Η κάθετη γραμμή είναι ο μέσος όρος.</div>`;
 }
 
@@ -389,6 +440,7 @@ function renderDetail() {
 function renderAll() {
   if (spots.length && !bgDone) { bgDone = true; setBg(spots.find(x => x.id === selId) || spots[0]); }
   if (!spots.length) return;
+  applyLive();
   const now = nowKey();
   if (!spots.some(s => s.id === selId)) selId = spots[0].id;
   renderHeader(now);

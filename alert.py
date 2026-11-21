@@ -72,8 +72,11 @@ def athens_now():
     return (utc + dt.timedelta(hours=3 if start <= utc < end else 2)).replace(tzinfo=None)
 
 
+LIVE = pathlib.Path("live.json")  # read by the page: the current hour shows the station reading
+
+
 def live_check(sent, now):
-    """Angelochori station (Cumulus realtime.txt). Returns (message, key) or None."""
+    """Angelochori station (Cumulus realtime.txt). Writes live.json; returns (message, key) or None."""
     f = get(STATION_URL, timeout=30).decode("utf-8", "replace").split()
     if len(f) < 52 or f[13] != "kts":
         print("station: unexpected format")
@@ -83,6 +86,13 @@ def live_check(sent, now):
     wind, gust = float(f[5]), float(f[40])
     direction = DIR_GR.get(f[51], "")
     print(f"station {obs:%H:%M} ({age:.0f} min old): {wind} kn, gust {gust}, {f[51]}")
+    try:
+        bearing = float(f[46])
+    except ValueError:
+        bearing = None
+    LIVE.write_text(json.dumps({"updatedAt": f"{now:%Y-%m-%dT%H:%M:%S}", "aggelohori": {
+        "obsTime": f"{obs:%Y-%m-%dT%H:%M:%S}", "wind": round(wind, 1), "gust": round(gust, 1),
+        "dir": bearing, "dirText": direction}}, ensure_ascii=False) + "\n", "utf-8")
     key = f"aggelohori|{now:%Y-%m-%d}|live"
     if age > 30 or not 8 <= now.hour <= 20 or shown(wind) < THRESHOLD or key in sent:
         return None
