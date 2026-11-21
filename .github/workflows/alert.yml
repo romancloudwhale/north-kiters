@@ -1,7 +1,7 @@
 name: Wind alert
 on:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "2,17,32,47 * * * *"
   workflow_dispatch:
 permissions:
   contents: write

@@ -144,6 +144,10 @@ tr.sel .spot-btn { color: var(--accent); text-decoration: underline; text-underl
 .live-btn:hover { border-color: var(--accent); }
 .live-btn small { font-weight: 400; color: var(--muted); font-size: 12px; }
 .live-none { color: var(--muted); }
+.stbox { position: relative; display: inline-flex; gap: 2px; margin-top: 16px; padding: 4px; border-radius: 10px; background: #C3C3C3; border: 1px solid var(--line); text-decoration: none; line-height: 0; }
+.stbox img { width: 116px; height: 116px; display: block; border-radius: 6px; }
+.st-tag { position: absolute; left: 8px; top: -9px; z-index: 1; display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; background: #C2410C; color: #fff; font: 600 10px/1.2 var(--body); letter-spacing: .06em; }
+.st-tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
 .brand { display: flex; align-items: center; gap: clamp(10px, 2.5vw, 20px); }
 .brand h1 { min-width: 0; }
 .kit { position: relative; display: inline-block; }
@@ -420,14 +424,31 @@ const LIVE = {
   kleidi: [{ t: 'Σταθμός Κλειδί', u: ST('kleidi') }],
   alykes: [{ t: 'Κάμερα Ολυμπιακή Ακτή', n: '10 χλμ', u: 'https://www.meteology.gr/weathercams/kamera-olympiakis-aktis-katerinis/' }],
   epanomi: [{ t: 'Κάμερα Ποταμός Επανομής', u: POTAMOS }, { t: 'Σταθμός Ν. Μηχανιώνα', n: '7 χλμ', u: ST('neamichaniona') }],
-  aggelohori: [{ t: 'Σταθμός Ν. Μηχανιώνα', n: '4 χλμ', u: ST('neamichaniona') }, { t: 'Κάμερα Ποταμός Επανομής', n: '13 χλμ', u: POTAMOS }],
+  aggelohori: [{ t: 'Σταθμός Active Sport Club', u: 'https://active-sport-club.eu/live-angelochori/' }],
   vourvourou: [{ t: 'Σταθμός Βουρβουρού', u: ST('vourvourou-ekies') }],
   parga: [{ t: 'Κάμερα Πάργα', u: 'https://www.skylinewebcams.com/webcam/ellada/epirus/preveza/parga.html' }, { t: 'Σταθμός Πάργα', u: ST('parga') }],
 };
+// Spots with their own station: its gauge images (wind in knots, direction) shown in a small box.
+// The station overwrites these images every few minutes; the page reloads them every 2 minutes.
+const STATION = {
+  aggelohori: { base: 'https://active-sport-club.eu/wp-content/uploads/weather-station/', page: 'https://active-sport-club.eu/live-angelochori/' },
+};
+const stTick = () => Math.floor(Date.now() / 120000);
+function stationHtml(id) {
+  const st = STATION[id];
+  if (!st) return '';
+  const t = stTick();
+  return `<a class="stbox" href="${esc(st.page)}" target="_blank" rel="noopener" aria-label="Live σταθμός: άνεμος και κατεύθυνση τώρα">
+    <span class="st-tag">LIVE</span>
+    <img class="st-img" data-src="${esc(st.base)}windgauge.png" src="${esc(st.base)}windgauge.png?t=${t}" alt="Ένταση ανέμου τώρα, σε κόμβους" width="116" height="116" onerror="this.closest('.stbox').hidden=true">
+    <img class="st-img" data-src="${esc(st.base)}compass.png" src="${esc(st.base)}compass.png?t=${t}" alt="Κατεύθυνση ανέμου τώρα" width="116" height="116">
+  </a>`;
+}
+setInterval(() => { const t = stTick(); document.querySelectorAll('.st-img').forEach(im => { im.src = im.dataset.src + '?t=' + t; }); }, 120000);
 function liveHtml(id) {
   const items = LIVE[id] || [];
-  if (!items.length) return '<div class="live"><span class="live-none">Δεν βρέθηκε live σταθμός ή κάμερα που να δουλεύει κοντά.</span></div>';
-  return '<div class="live"><span class="live-label">Live τώρα:</span>' + items.map(i => `<a class="live-btn" href="${esc(i.u)}" target="_blank" rel="noopener">${esc(i.t)}${i.n ? ` <small>${esc(i.n)}</small>` : ''}</a>`).join('') + '</div>';
+  if (!items.length) return stationHtml(id) + '<div class="live"><span class="live-none">Δεν βρέθηκε live σταθμός ή κάμερα που να δουλεύει κοντά.</span></div>';
+  return stationHtml(id) + '<div class="live"><span class="live-label">Live τώρα:</span>' + items.map(i => `<a class="live-btn" href="${esc(i.u)}" target="_blank" rel="noopener">${esc(i.t)}${i.n ? ` <small>${esc(i.n)}</small>` : ''}</a>`).join('') + '</div>';
 }
 // Waves: a separate section with its own spots, models and cache.
 const WSPOTS = [
