@@ -1,12 +1,16 @@
 {
 "checked": "2026-11-23",
-"forecastHour": "2026-11-23T07",
+"forecastHour": "2026-11-23T08",
 "sent": {
 "aggelohori|2026-11-23|24h": 1,
+"aggelohori|2026-11-24|24h": 1,
 "agiosmamas|2026-11-23|24h": 1,
 "alykes|2026-11-23|24h": 1,
 "epanomi|2026-11-23|24h": 1,
+"epanomi|2026-11-24|24h": 1,
 "kleidi|2026-11-23|24h": 1,
-"stomio|2026-11-23|24h": 1
+"kleidi|2026-11-24|24h": 1,
+"stomio|2026-11-23|24h": 1,
+"stomio|2026-11-24|24h": 1
 }
 }
